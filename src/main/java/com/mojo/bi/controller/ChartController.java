@@ -14,10 +14,7 @@ import com.mojo.bi.constant.CommonConstant;
 import com.mojo.bi.constant.UserConstant;
 import com.mojo.bi.exception.BusinessException;
 import com.mojo.bi.exception.ThrowUtils;
-import com.mojo.bi.model.dto.chart.ChartAddRequest;
-import com.mojo.bi.model.dto.chart.ChartEditRequest;
-import com.mojo.bi.model.dto.chart.ChartQueryRequest;
-import com.mojo.bi.model.dto.chart.ChartUpdateRequest;
+import com.mojo.bi.model.dto.chart.*;
 import com.mojo.bi.model.entity.Chart;
 import com.mojo.bi.model.entity.User;
 import com.mojo.bi.service.ChartService;
@@ -25,10 +22,8 @@ import com.mojo.bi.service.UserService;
 import com.mojo.bi.utils.SqlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -52,7 +47,24 @@ public class ChartController {
 
     private final static Gson GSON = new Gson();
 
-    // region 增删改查
+
+
+    /**
+     * 智能分析
+     */
+    @PostMapping("/gen")
+    public BaseResponse<String> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
+                                             GenChartByAiRequest aiRequest, HttpServletRequest request) {
+        String name = aiRequest.getName();
+        String goal = aiRequest.getGoal();
+        String chartType = aiRequest.getChartType();
+        //校验
+        ThrowUtils.throwIf(StrUtil.isBlank(goal), ErrorCode.PARAMS_ERROR, "目标为空");
+        ThrowUtils.throwIf(StrUtil.isBlank(name) || name.length()>100 , ErrorCode.PARAMS_ERROR, "名称为空");
+        //读取excel文件，进行处理
+
+        return null;
+    }
 
     /**
      * 创建
@@ -226,6 +238,7 @@ public class ChartController {
             return queryWrapper;
         }
         String sortField = chartQueryRequest.getSortField();
+        String name = chartQueryRequest.getName();
         String sortOrder = chartQueryRequest.getSortOrder();
         Long id = chartQueryRequest.getId();
         String goal = chartQueryRequest.getGoal();
@@ -233,6 +246,7 @@ public class ChartController {
         Long userId = chartQueryRequest.getUserId();
         // 拼接查询条件
         queryWrapper.eq(id != null && id>0, "id", id);
+        queryWrapper.eq(StrUtil.isNotBlank(name), "name", name);
         queryWrapper.eq(StrUtil.isNotBlank(goal), "goal", goal);
         queryWrapper.eq(ObjUtil.isNotEmpty(userId), "userId", userId);
         queryWrapper.eq(StrUtil.isNotBlank(chartType), "chartType", chartType);

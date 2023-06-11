@@ -13,6 +13,8 @@ public class ChartEditRequest implements Serializable {
 
     private Long id;
 
+    private String name;
+
     /**
      * 分析目标
      */

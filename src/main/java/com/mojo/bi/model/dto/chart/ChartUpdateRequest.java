@@ -23,6 +23,8 @@ public class ChartUpdateRequest implements Serializable {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
+    private String name;
+
     /**
      * 分析目标
      */

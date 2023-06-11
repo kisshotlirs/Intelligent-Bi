@@ -28,6 +28,7 @@ create table if not exists chart
 (
     id            bigint auto_increment comment "id" primary key ,
     goal          text null  comment '分析目标',
+    name          varchar(128) null comment '图表名称',
     chartData     text null  comment '图表数据',
     chartType     varchar(128) null comment '图表类型',
     genChart      text null comment '生成的图表数据',
