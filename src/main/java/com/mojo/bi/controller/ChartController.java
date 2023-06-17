@@ -14,13 +14,17 @@ import com.mojo.bi.constant.CommonConstant;
 import com.mojo.bi.constant.UserConstant;
 import com.mojo.bi.exception.BusinessException;
 import com.mojo.bi.exception.ThrowUtils;
+import com.mojo.bi.manager.AiManager;
 import com.mojo.bi.model.dto.chart.*;
 import com.mojo.bi.model.entity.Chart;
 import com.mojo.bi.model.entity.User;
+import com.mojo.bi.model.vo.BiResponse;
 import com.mojo.bi.service.ChartService;
 import com.mojo.bi.service.UserService;
+import com.mojo.bi.utils.ExcelUtils;
 import com.mojo.bi.utils.SqlUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,23 +51,59 @@ public class ChartController {
 
     private final static Gson GSON = new Gson();
 
-
+    @Resource
+    private AiManager aiManager;
 
     /**
      * 智能分析
      */
     @PostMapping("/gen")
-    public BaseResponse<String> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
+    public BaseResponse<BiResponse> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
                                              GenChartByAiRequest aiRequest, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+
         String name = aiRequest.getName();
         String goal = aiRequest.getGoal();
         String chartType = aiRequest.getChartType();
         //校验
         ThrowUtils.throwIf(StrUtil.isBlank(goal), ErrorCode.PARAMS_ERROR, "目标为空");
-        ThrowUtils.throwIf(StrUtil.isBlank(name) || name.length()>100 , ErrorCode.PARAMS_ERROR, "名称为空");
-        //读取excel文件，进行处理
+        ThrowUtils.throwIf(StrUtil.isBlank(name) || name.length()>100 , ErrorCode.PARAMS_ERROR, "名称过长");
+        //用户输入
+        StringBuilder userInput = new StringBuilder();
+        userInput.append("分析需求：").append("\n");
+        if (StringUtils.isNotBlank(chartType)) {
+            goal += "请使用" + chartType;
+        }
+        userInput.append(goal).append("\n");
+        userInput.append("原始数据：").append("\n");
+        //读取excel文件，进行处理，得到压缩后的数据
+        String csvData = ExcelUtils.excel2Csv(multipartFile);
+        userInput.append("原始数据：").append(csvData).append("\n");
 
-        return null;
+        //调用鱼聪明ai模型
+        String result = aiManager.doChat(0L, userInput.toString());
+        String[] split = result.split("【 【 【 【 【");
+        if (split.length < 3) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI 生成错误");
+        }
+        String genChart = split[1];
+        String genResult = split[2];
+        //插入分析结果到数据库
+        Chart chart = new Chart();
+        chart.setName(name);
+        chart.setGoal(goal);
+        chart.setChartData(csvData);
+        chart.setChartType(chartType);
+        chart.setGenChart(genChart);
+        chart.setGenResult(genResult);
+        chart.setUserId(loginUser.getId());
+        boolean save = chartService.save(chart);
+        ThrowUtils.throwIf(!save, ErrorCode.SYSTEM_ERROR, "分析结果保存失败");
+        //处理返回数据
+        BiResponse biResponse = new BiResponse();
+        biResponse.setGenChart(genChart);
+        biResponse.setGenResult(genResult);
+        return ResultUtils.success(biResponse);
     }
 
     /**

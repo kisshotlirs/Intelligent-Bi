@@ -89,3 +89,9 @@ cos:
     secretKey: xxx
     region: xxx
     bucket: xxx
+
+# 鱼聪明ai匹配值
+yuapi:
+  client:
+    access-key: cetbzjv0rok9grdxg4ntjr7uya2253su
+    secret-key: r6ticx7jbgdp3pbtuh9dwcmqqx7fmaei
