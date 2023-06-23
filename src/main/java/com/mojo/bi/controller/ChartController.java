@@ -1,5 +1,6 @@
 package com.mojo.bi.controller;
 
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -31,6 +32,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * gpt接口
@@ -68,6 +71,15 @@ public class ChartController {
         //校验
         ThrowUtils.throwIf(StrUtil.isBlank(goal), ErrorCode.PARAMS_ERROR, "目标为空");
         ThrowUtils.throwIf(StrUtil.isBlank(name) || name.length()>100 , ErrorCode.PARAMS_ERROR, "名称过长");
+        //校验文件大小
+        String originalFilename = multipartFile.getOriginalFilename();
+        long size = multipartFile.getSize();
+        final long FIVE_MB = 1024 * 1024 * 5;
+        ThrowUtils.throwIf(size > FIVE_MB , ErrorCode.PARAMS_ERROR, "文件超过5MB");
+        //校验文件后缀
+        String suffix = FileUtil.getSuffix(originalFilename);
+        final List<String> validFileSuffix = Arrays.asList("png","jpg","svg","webp","jpeg");
+        ThrowUtils.throwIf(!validFileSuffix.contains(suffix), ErrorCode.PARAMS_ERROR, "文件类型错误");
         //用户输入
         StringBuilder userInput = new StringBuilder();
         userInput.append("分析需求：").append("\n");
