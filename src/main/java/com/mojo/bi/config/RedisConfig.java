@@ -28,12 +28,11 @@ public class RedisConfig {
     private String password;
 
     @Bean
-    public RedissonClient getRedissonClient() {
+    public RedissonClient redissonClient() {
         Config config = new Config();
         config.useSingleServer()
                 .setDatabase(database)
-                .setAddress("redis://" + host + ":" + port)
-                .setPassword(password);
+                .setAddress("redis://" + host + ":" + port);
         return Redisson.create(config);
     }
 }

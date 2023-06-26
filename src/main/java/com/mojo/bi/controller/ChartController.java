@@ -16,6 +16,7 @@ import com.mojo.bi.constant.UserConstant;
 import com.mojo.bi.exception.BusinessException;
 import com.mojo.bi.exception.ThrowUtils;
 import com.mojo.bi.manager.AiManager;
+import com.mojo.bi.manager.RedisLimitManger;
 import com.mojo.bi.model.dto.chart.*;
 import com.mojo.bi.model.entity.Chart;
 import com.mojo.bi.model.entity.User;
@@ -57,6 +58,9 @@ public class ChartController {
     @Resource
     private AiManager aiManager;
 
+    @Resource
+    private RedisLimitManger redisLimitManger;
+
     /**
      * 智能分析
      */
@@ -64,6 +68,8 @@ public class ChartController {
     public BaseResponse<BiResponse> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
                                              GenChartByAiRequest aiRequest, HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
+        //限流判断，每个用户一个限流器
+        redisLimitManger.doRateLimit("genChartByAi_" + String.valueOf(loginUser.getId()));
 
         String name = aiRequest.getName();
         String goal = aiRequest.getGoal();
@@ -78,7 +84,7 @@ public class ChartController {
         ThrowUtils.throwIf(size > FIVE_MB , ErrorCode.PARAMS_ERROR, "文件超过5MB");
         //校验文件后缀
         String suffix = FileUtil.getSuffix(originalFilename);
-        final List<String> validFileSuffix = Arrays.asList("png","jpg","svg","webp","jpeg");
+        final List<String> validFileSuffix = Arrays.asList("xlsx","xls");
         ThrowUtils.throwIf(!validFileSuffix.contains(suffix), ErrorCode.PARAMS_ERROR, "文件类型错误");
         //用户输入
         StringBuilder userInput = new StringBuilder();

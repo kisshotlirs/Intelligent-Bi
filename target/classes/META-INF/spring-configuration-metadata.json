@@ -6,6 +6,11 @@
       "sourceType": "com.mojo.bi.config.CosClientConfig"
     },
     {
+      "name": "spring.redis",
+      "type": "com.mojo.bi.config.RedisConfig",
+      "sourceType": "com.mojo.bi.config.RedisConfig"
+    },
+    {
       "name": "wx.open",
       "type": "com.mojo.bi.config.WxOpenConfig",
       "sourceType": "com.mojo.bi.config.WxOpenConfig"
@@ -45,6 +50,26 @@
       "name": "cos.client.secretKey",
       "type": "java.lang.String",
       "description": "Description for cos.client.secretKey."
+    },
+    {
+      "name": "spring.redis.database",
+      "type": "java.lang.Integer",
+      "sourceType": "com.mojo.bi.config.RedisConfig"
+    },
+    {
+      "name": "spring.redis.host",
+      "type": "java.lang.String",
+      "sourceType": "com.mojo.bi.config.RedisConfig"
+    },
+    {
+      "name": "spring.redis.password",
+      "type": "java.lang.String",
+      "sourceType": "com.mojo.bi.config.RedisConfig"
+    },
+    {
+      "name": "spring.redis.port",
+      "type": "java.lang.Integer",
+      "sourceType": "com.mojo.bi.config.RedisConfig"
     },
     {
       "name": "wx.open.app-id",
