@@ -35,6 +35,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * gpt接口
@@ -98,30 +99,78 @@ public class ChartController {
         String csvData = ExcelUtils.excel2Csv(multipartFile);
         userInput.append("原始数据：").append(csvData).append("\n");
 
-        //调用鱼聪明ai模型
-        String result = aiManager.doChat(0L, userInput.toString());
-        String[] split = result.split("【 【 【 【 【");
-        if (split.length < 3) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI 生成错误");
-        }
-        String genChart = split[1];
-        String genResult = split[2];
         //插入分析结果到数据库
         Chart chart = new Chart();
         chart.setName(name);
         chart.setGoal(goal);
         chart.setChartData(csvData);
         chart.setChartType(chartType);
-        chart.setGenChart(genChart);
-        chart.setGenResult(genResult);
+        chart.setStatus("wait");
         chart.setUserId(loginUser.getId());
         boolean save = chartService.save(chart);
         ThrowUtils.throwIf(!save, ErrorCode.SYSTEM_ERROR, "分析结果保存失败");
+
+        //任务队列满了 抛异常
+        Executor executor = new ThreadPoolExecutor(
+                10,  // 核心线程数
+                100, // 最大线程数
+                0L, TimeUnit.MILLISECONDS, // 空闲线程存活时间
+                new ArrayBlockingQueue<>(100), // 任务队列
+                Executors.defaultThreadFactory() // 线程工厂
+        ) {
+            @Override
+            public void execute(Runnable command) {
+                if (getQueue().remainingCapacity() == 0) {
+                    throw new RejectedExecutionException("任务队列已满");
+                }
+                super.execute(command);
+            }
+        };
+
+        CompletableFuture.runAsync(() -> {
+            Chart updateChart = new Chart();
+            updateChart.setId(chart.getId());
+            updateChart.setStatus("running");
+            boolean b = chartService.updateById(updateChart);
+            if (!b) {
+                handleChartUpdateError(chart.getId(), "更新图表执行中状态失败");
+                return;
+            }
+
+            //异步调用鱼聪明ai模型
+            String result = aiManager.doChat(0L, userInput.toString());
+            String[] split = result.split("【 【 【 【 【");
+            if (split.length < 3) {
+                handleChartUpdateError(chart.getId(), "AI生成错误");
+                return;
+            }
+            String genChart = split[1];
+            String genResult = split[2];
+            Chart updateChartResult = new Chart();
+            updateChartResult.setId(chart.getId());
+            updateChartResult.setGenChart(genChart);
+            updateChartResult.setGenResult(genResult);
+            updateChartResult.setStatus("success");
+            boolean update = chartService.updateById(updateChartResult);
+            if (!update) {
+                handleChartUpdateError(chart.getId(), "更新图表成功状态失败");
+            }
+        }, executor);
+
         //处理返回数据
         BiResponse biResponse = new BiResponse();
-        biResponse.setGenChart(genChart);
-        biResponse.setGenResult(genResult);
         return ResultUtils.success(biResponse);
+    }
+
+    private void handleChartUpdateError(long chartId, String execMessage) {
+        Chart chart = new Chart();
+        chart.setId(chartId);
+        chart.setStatus("failed");
+        chart.setExecMessage("execMessage");
+        boolean b = chartService.updateById(chart);
+        if (!b) {
+            log.error("更新图表失败状态失败" + chartId + " : " +execMessage);
+        }
     }
 
     /**
